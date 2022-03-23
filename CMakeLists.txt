@@ -1,7 +1,6 @@
 cmake_minimum_required (VERSION 3.21)
-project (PROJECT)
+project (radix)
 enable_testing()
 
-add_executable(example src/example.c)
-add_test(example example)
+add_subdirectory(src)
 
