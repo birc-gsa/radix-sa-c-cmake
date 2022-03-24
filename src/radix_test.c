@@ -45,9 +45,55 @@ static void check_bucket_sort(void)
         (int[]){11, 10, 7, 4, 1, 0, 9, 8, 6, 5, 3, 2});
 }
 
+// Construct random nul-terminated string of length n (including sentinel)
+static void random_string(size_t n, char x[n], const char *alpha, int alpha_size)
+{
+    for (size_t i = 0; i < n - 1; i++)
+    {
+        x[i] = alpha[rand() % alpha_size];
+    }
+    x[n - 1] = '\0';
+}
+
+static void check_suffixes(size_t n, const char x[n], int sa[n])
+{
+    for (size_t i = 1; i < n; i++)
+    {
+        assert(strcmp(x + sa[i - 1], x + sa[i]) < 0);
+    }
+}
+
+static void check_lsd_radix_sort(void)
+{
+    size_t n = 10;
+    char x[n];
+    int sa[n];
+    for (int k = 0; k < 5; k++)
+    {
+        random_string(n, x, "acgt", 4);
+        lsd_radix_sort(n, x, sa);
+        check_suffixes(n, x, sa);
+    }
+}
+
+static void check_msd_radix_sort(void)
+{
+    size_t n = 10;
+    char x[n];
+    int sa[n];
+    for (int k = 0; k < 5; k++)
+    {
+        random_string(n, x, "acgt", 4);
+        lsd_radix_sort(n, x, sa);
+        check_suffixes(n, x, sa);
+    }
+}
+
 int main(void)
 {
     check_count_sort();
     check_bucket_sort();
+    check_lsd_radix_sort();
+    // FIXME check_msd_radix_sort();
     return 0;
 }
