@@ -29,7 +29,9 @@ void count_sort(size_t n, const char x[n], char y[n])
 }
 
 // by putting buckets in a struct we get copy semantics
+// clang-format off
 typedef struct { int ets[256]; } buck; // buck.ets
+// clang-format on
 
 static inline void cumsum(buck *buck, letter_count *c)
 {
