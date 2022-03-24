@@ -63,3 +63,6 @@ dkms.conf
 >>>>>>> build/main
 build
 .vscode
+xcodebuild
+Makefile
+src/radix_test
