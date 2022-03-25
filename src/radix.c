@@ -44,7 +44,7 @@ void bucket_sort(size_t n, const char x[n], const int idx[n], int out[n])
     counts counts, buckets;
     count_letters(counts, n, x);
     cumsum(buckets, counts);
-    
+
     for (size_t i = 0; i < n; i++)
     {
         out[buckets[(unsigned)x[idx[i]]]++] = idx[i];
@@ -115,11 +115,59 @@ static inline void count_letters_col_range(counts counts, size_t n, const char x
     }
 }
 
+static void push_next(counts buckets, int i, int j, int col, stack stack)
+{
+    int prev = 0;
+    for (int k = 1; k < 256; k++)
+    {
+        if (buckets[k] == buckets[prev])
+        {
+            continue;
+        }
+        if (buckets[prev] + 1 < buckets[k])
+        {
+            // FIXME: push to stack
+            printf("<%d>[%d,%d)\n", col + 1, i + buckets[prev], i + buckets[k]);
+        }
+        prev = k;
+    }
+    if (buckets[prev] + 1 < buckets[255])
+    {
+        // FIXME: push to stack
+        printf("<%d>[%d,%d)\n", col + 1, i + buckets[prev], j);
+    }
+}
+
+static inline void swap(int *i, int *j)
+{
+    int tmp = *i;
+    *i = *j;
+    *j = tmp;
+}
+
+#define BUCKET_(K) (buckets[rot_idx(n, x, K + col)])
+#define BUCKET(K) (i + BUCKET_(K))
+#define SWAP_INTO_BUCKET(K) swap(&sa[k], &sa[i + BUCKET_(K)++])
+
 static void sort_col(size_t n, const char x[n], int sa[n], int i, int j, int col, stack stack)
 {
     counts counts, buckets;
     count_letters_col_range(counts, n, x, i, j, col);
     cumsum(buckets, counts);
+    
+    // add sub-intervals to the stack so we will recurse later
+    push_next(buckets, 0, n, 0, stack);
+    
+    // then sort the existing interval. Since the MSD sort doesn't have to be a
+    // stable sort, we can use an inplace algorithm that simply swaps around the
+    // elments in sa[i:j].
+    for (int k = i; k < j; k++)
+    {
+        while (k >= BUCKET(k))
+        {
+            SWAP_INTO_BUCKET(k);
+        }
+    }
 }
 
 void msd_radix_sort(size_t n, const char x[n], int sa[n])

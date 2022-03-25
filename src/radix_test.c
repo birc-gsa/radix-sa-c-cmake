@@ -59,8 +59,10 @@ static void check_suffixes(size_t n, const char x[n], int sa[n])
 {
     for (size_t i = 1; i < n; i++)
     {
+        printf("[%d] %s ?<? [%d] %s\n", sa[i-1], x + sa[i - 1], sa[i], x + sa[i]);
         assert(strcmp(x + sa[i - 1], x + sa[i]) < 0);
     }
+    printf("\n");
 }
 
 static void check_lsd_radix_sort(void)
@@ -94,6 +96,6 @@ int main(void)
     check_count_sort();
     check_bucket_sort();
     check_lsd_radix_sort();
-    //check_msd_radix_sort();
+    check_msd_radix_sort();
     return 0;
 }
