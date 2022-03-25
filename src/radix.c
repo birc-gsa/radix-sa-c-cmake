@@ -4,20 +4,21 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef int letter_count[256];
-static inline void count_letters(letter_count *c, size_t n, const char x[n])
+typedef int counts[256];
+
+static inline void count_letters(counts c, size_t n, const char x[n])
 {
-    memset(c, 0, sizeof *c);
+    memset(c, 0, 256 * sizeof *c);
     for (size_t i = 0; i < n; i++)
     {
-        (*c)[(unsigned)x[i]]++;
+        c[(unsigned)x[i]]++;
     }
 }
 
 void count_sort(size_t n, const char x[n], char y[n])
 {
-    letter_count count;
-    count_letters(&count, n - 1, x); // don't include sentinel here
+    counts count;
+    count_letters(count, n - 1, x); // don't include sentinel here
     for (int i = 0; i < 256; i++)
     {
         for (int k = 0; k < count[i]; k++)
@@ -28,30 +29,25 @@ void count_sort(size_t n, const char x[n], char y[n])
     *y = '\0';
 }
 
-// by putting buckets in a struct we get copy semantics
-// clang-format off
-typedef struct { int ets[256]; } buck; // buck.ets
-// clang-format on
-
-static inline void cumsum(buck *buck, letter_count *c)
+static inline void cumsum(counts buckets, counts counts)
 {
     int sum = 0;
     for (int i = 0; i < 256; i++)
     {
-        buck->ets[i] = sum;
-        sum += (*c)[i];
+        buckets[i] = sum;
+        sum += counts[i];
     }
 }
 
 void bucket_sort(size_t n, const char x[n], const int idx[n], int out[n])
 {
-    letter_count c;
-    count_letters(&c, n, x);
-    buck buck;
-    cumsum(&buck, &c);
+    counts counts, buckets;
+    count_letters(counts, n, x);
+    cumsum(buckets, counts);
+    
     for (size_t i = 0; i < n; i++)
     {
-        out[buck.ets[(unsigned)x[idx[i]]]++] = idx[i];
+        out[buckets[(unsigned)x[idx[i]]]++] = idx[i];
     }
 }
 
@@ -60,24 +56,20 @@ static inline unsigned rot_idx(size_t n, const char x[n], int i)
     return (unsigned)x[i % n];
 }
 
-// buckets is passed as value so we don't change the original. This is why we wrap
-// the buckets array in a struct. If we used an array it would pass by pointer and
-// we would be changing the original.
-static void buck_sort(size_t n, const char x[n], int in[n], int out[n], buck buck, int col)
+static void buck_sort(size_t n, const char x[n], int in[n], int out[n], counts buckets, int col)
 {
     for (size_t i = 0; i < n; i++)
     {
-        out[buck.ets[rot_idx(n, x, in[i] + col)]++] = in[i];
+        out[buckets[rot_idx(n, x, in[i] + col)]++] = in[i];
     }
 }
 
 void lsd_radix_sort(size_t n, const char x[n], int sa[n])
 {
     // All columns have the same letters, so we can reuse these
-    letter_count c;
-    count_letters(&c, n, x);
-    buck buck;
-    cumsum(&buck, &c);
+    counts counts, orig_buckets, buckets;
+    count_letters(counts, n, x);
+    cumsum(orig_buckets, counts);
 
     // Buffers for handling input/output in bucket sorts.
     // We need them because we cannot sort in-place with a stable
@@ -95,7 +87,8 @@ void lsd_radix_sort(size_t n, const char x[n], int sa[n])
 
     for (int i = n - 1; i >= 0; i--)
     {
-        buck_sort(n, x, bufs[in_buf], bufs[!in_buf], buck, i);
+        memcpy(buckets, orig_buckets, sizeof buckets);
+        buck_sort(n, x, bufs[in_buf], bufs[!in_buf], buckets, i);
         in_buf = !in_buf;
     }
 
@@ -106,6 +99,31 @@ void lsd_radix_sort(size_t n, const char x[n], int sa[n])
     free(buf1);
 }
 
+typedef struct stack *stack;
+struct stack
+{
+    int FIXME;
+};
+
+static inline void count_letters_col_range(counts counts, size_t n, const char x[n],
+                                           int i, int j, int col)
+{
+    memset(counts, 0, 256 * sizeof *counts);
+    for (int k = i; k < j; k++)
+    {
+        counts[rot_idx(n, x, k + col)]++;
+    }
+}
+
+static void sort_col(size_t n, const char x[n], int sa[n], int i, int j, int col, stack stack)
+{
+    counts counts, buckets;
+    count_letters_col_range(counts, n, x, i, j, col);
+    cumsum(buckets, counts);
+}
+
 void msd_radix_sort(size_t n, const char x[n], int sa[n])
 {
+    struct stack stack;
+    sort_col(n, x, sa, 0, n, 0, &stack);
 }

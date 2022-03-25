@@ -84,7 +84,7 @@ static void check_msd_radix_sort(void)
     for (int k = 0; k < 5; k++)
     {
         random_string(n, x, "acgt", 4);
-        lsd_radix_sort(n, x, sa);
+        msd_radix_sort(n, x, sa);
         check_suffixes(n, x, sa);
     }
 }
@@ -94,6 +94,6 @@ int main(void)
     check_count_sort();
     check_bucket_sort();
     check_lsd_radix_sort();
-    // FIXME check_msd_radix_sort();
+    //check_msd_radix_sort();
     return 0;
 }
