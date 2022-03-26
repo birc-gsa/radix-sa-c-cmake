@@ -1,5 +1,7 @@
 #include "radix.h"
 #include <assert.h>
+#include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -53,6 +55,7 @@ void bucket_sort(size_t n, const char x[n], const int idx[n], int out[n])
 
 static inline unsigned rot_idx(size_t n, const char x[n], int i)
 {
+    assert(n > 0);
     return (unsigned)x[i % n];
 }
 
@@ -99,23 +102,62 @@ void lsd_radix_sort(size_t n, const char x[n], int sa[n])
     free(buf1);
 }
 
+// clang-format off
 typedef struct stack *stack;
 struct stack
 {
-    int FIXME;
+    size_t len, used;
+    struct frame { int i, j, col; } data[];
 };
+// clang-format on
 
-static inline void count_letters_col_range(counts counts, size_t n, const char x[n],
-                                           int i, int j, int col)
+const size_t init_stack_size = 4;
+static stack new_stack(void)
+{
+    stack stack = malloc(offsetof(struct stack, data) + init_stack_size * sizeof stack->data[0]);
+    assert(stack);
+    stack->len = init_stack_size;
+    stack->used = 0;
+    return stack;
+}
+
+static inline bool is_empty(stack *stack)
+{
+    return (*stack)->used == 0;
+}
+
+static void push(stack *stack, int i, int j, int col)
+{
+    if ((*stack)->used == (*stack)->len)
+    {
+        (*stack)->len *= 2;
+        *stack = realloc(stack, offsetof(struct stack, data) + (*stack)->len * sizeof(*stack)->data[0]);
+        assert(*stack);
+    }
+    (*stack)->data[(*stack)->used++] = (struct frame){.i = i, .j = j, .col = col};
+}
+
+static void pop(stack *stack, int *i, int *j, int *col)
+{
+    (*stack)->used--;
+    *i = (*stack)->data[(*stack)->used].i;
+    *j = (*stack)->data[(*stack)->used].j;
+    *col = (*stack)->data[(*stack)->used].col;
+}
+
+static inline void
+count_letters_col_range(counts counts,
+                        size_t n, const char x[n], int sa[n],
+                        int i, int j, int col)
 {
     memset(counts, 0, 256 * sizeof *counts);
     for (int k = i; k < j; k++)
     {
-        counts[rot_idx(n, x, k + col)]++;
+        counts[rot_idx(n, x, sa[k] + col)]++;
     }
 }
 
-static void push_next(counts buckets, int i, int j, int col, stack stack)
+static void push_next(counts buckets, int i, int j, int col, stack *stack)
 {
     int prev = 0;
     for (int k = 1; k < 256; k++)
@@ -126,15 +168,13 @@ static void push_next(counts buckets, int i, int j, int col, stack stack)
         }
         if (buckets[prev] + 1 < buckets[k])
         {
-            // FIXME: push to stack
-            printf("<%d>[%d,%d)\n", col + 1, i + buckets[prev], i + buckets[k]);
+            push(stack, i + buckets[prev], i + buckets[k], col + 1);
         }
         prev = k;
     }
     if (buckets[prev] + 1 < buckets[255])
     {
-        // FIXME: push to stack
-        printf("<%d>[%d,%d)\n", col + 1, i + buckets[prev], j);
+        push(stack, i + buckets[prev], j, col + 1);
     }
 }
 
@@ -145,19 +185,19 @@ static inline void swap(int *i, int *j)
     *j = tmp;
 }
 
-#define BUCKET_(K) (buckets[rot_idx(n, x, K + col)])
+#define BUCKET_(K) (buckets[rot_idx(n, x, sa[K] + col)])
 #define BUCKET(K) (i + BUCKET_(K))
 #define SWAP_INTO_BUCKET(K) swap(&sa[k], &sa[i + BUCKET_(K)++])
 
-static void sort_col(size_t n, const char x[n], int sa[n], int i, int j, int col, stack stack)
+static void sort_col(size_t n, const char x[n], int sa[n], int i, int j, int col, stack *stack)
 {
-    counts counts, buckets;
-    count_letters_col_range(counts, n, x, i, j, col);
+    counts counts, buckets, orig;
+    count_letters_col_range(counts, n, x, sa, i, j, col);
     cumsum(buckets, counts);
-    
+
     // add sub-intervals to the stack so we will recurse later
-    push_next(buckets, 0, n, 0, stack);
-    
+    push_next(buckets, i, j, col, stack);
+
     // then sort the existing interval. Since the MSD sort doesn't have to be a
     // stable sort, we can use an inplace algorithm that simply swaps around the
     // elments in sa[i:j].
@@ -172,6 +212,18 @@ static void sort_col(size_t n, const char x[n], int sa[n], int i, int j, int col
 
 void msd_radix_sort(size_t n, const char x[n], int sa[n])
 {
-    struct stack stack;
-    sort_col(n, x, sa, 0, n, 0, &stack);
+    for (int i = 0; i < n; i++)
+    {
+        sa[i] = i;
+    }
+
+    stack stack = new_stack();
+    push(&stack, 0, n, 0);
+    while (!is_empty(&stack))
+    {
+        int i, j, col;
+        pop(&stack, &i, &j, &col);
+        sort_col(n, x, sa, i, j, col, &stack);
+    }
+    free(stack);
 }
